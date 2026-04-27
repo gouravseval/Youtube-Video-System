@@ -1,13 +1,13 @@
 import dotenv from "dotenv";
+dotenv.config({
+    path: './.env'
+});
+import "reflect-metadata";
 import { connectDB } from './src/db/index.js';
 import { app } from './app.js';
 
-dotenv.config({
-    path: './backend/.env'
-});
 
-
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8080;
 
 connectDB()
     .then(() => {
@@ -18,5 +18,5 @@ connectDB()
 
     })
     .catch((err) => {
-        console.log("MONGO db connection failed !!! ", err);
+        console.log("Postgres db connection failed !!! ", err);
     });

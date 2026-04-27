@@ -1,12 +1,40 @@
-import { User } from "../models/model.user.js";
+import { AppDataSource } from "../db/data-source.js";
+import { UserEntity } from "../models/user.entity.js";
 import { comparePassword, hashPassword } from "../utils/bcrypt.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
+
+const userRepository = AppDataSource.getRepository(UserEntity);
+
+const generateAccessToken = (user) => {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+    },
+    process.env.ACCESS_TOKEN_SECRET || "access_secret_123",
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "1d",
+    }
+  );
+};
+
+const generateRefreshToken = (user) => {
+  return jwt.sign(
+    {
+      id: user.id,
+    },
+    process.env.REFRESH_TOKEN_SECRET || "refresh_secret_123",
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "10d",
+    }
+  );
+};
 
 export const signUp = async (req, res) => {
   const { username, email, password } = req.body;
-  const currentUser = req.user
-
 
   // Validate required fields
   if (
@@ -23,26 +51,24 @@ export const signUp = async (req, res) => {
   }
 
   // Check for duplicate account
-  const existingUser = await User.findOne({ email });
+  const existingUser = await userRepository.findOneBy({ email });
 
   if (existingUser) {
     throw new ApiError(409, "User with this email already exists");
   }
 
   // Create and persist new user
-  const user = await User.create({
+  const user = userRepository.create({
     username,
     password: hash,
     email,
   });
+  await userRepository.save(user);
 
   return res
     .status(201)
-    .json(new ApiResponse(201, { id: user._id, username, email }, "User created successfully"));
+    .json(new ApiResponse(201, { id: user.id, username, email }, "User created successfully"));
 };
-
-
-
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
@@ -53,7 +79,7 @@ export const login = async (req, res) => {
   }
 
   // Find user
-  const user = await User.findOne({ email });
+  const user = await userRepository.findOneBy({ email });
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -67,14 +93,21 @@ export const login = async (req, res) => {
   }
 
   // Generate Tokens
-  const accessToken = user.generateAccessToken();
-  const refreshToken = user.generateRefreshToken();
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
   // Save refresh token to user
   user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
+  await userRepository.save(user);
 
-  const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+  const loggedInUser = await userRepository.findOne({
+    where: { id: user.id },
+    select: {
+      id: true,
+      username: true,
+      email: true
+    }
+  });
 
   const options = {
     httpOnly: true,

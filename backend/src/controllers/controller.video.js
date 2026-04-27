@@ -1,16 +1,19 @@
-import { Video } from "../models/model.video.js";
+import { AppDataSource } from "../db/data-source.js";
+import { VideoEntity } from "../models/video.entity.js";
 import { uploadOnCloudinary } from "../cloudinary/cloudinary.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Readable } from "stream";
 
+const videoRepository = AppDataSource.getRepository(VideoEntity);
+
 export const streamVideo = async (req, res) => {
   const { id } = req.params;
-  const video = await Video.findById(id);
+  const video = await videoRepository.findOneBy({ id });
   if (!video) throw new ApiError(404, "Video not found");
 
   const range = req.headers.range;
-  
+
   try {
     const headers = {};
     if (range) {
@@ -52,11 +55,12 @@ export const getAllVideos = async (req, res) => {
   const limit = parseInt(req.query.limit) || 12;
   const skip = (page - 1) * limit;
 
-  const videos = await Video.find()
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
-  
+  const videos = await videoRepository.find({
+    order: { createdAt: "DESC" },
+    skip: skip,
+    take: limit,
+  });
+
   return res
     .status(200)
     .json(new ApiResponse(200, videos, "Videos fetched successfully"));
@@ -70,7 +74,7 @@ export const getVideoById = async (req, res) => {
     throw new ApiError(400, "Video ID is required");
   }
 
-  const video = await Video.findById(id);
+  const video = await videoRepository.findOneBy({ id });
   if (!video) {
     throw new ApiError(404, "Video not found");
   }
@@ -98,12 +102,13 @@ export const uploadVideo = async (req, res) => {
     throw new ApiError(500, "Failed to upload video to Cloudinary");
   }
 
-  const video = await Video.create({
+  const video = videoRepository.create({
     name,
     fileName: req.file.originalname,
     link: response.secure_url,
-    user_id: req.user?._id,
+    user_id: req.user?.id,
   });
+  await videoRepository.save(video);
 
   return res
     .status(201)
@@ -117,10 +122,12 @@ export const deleteVideo = async (req, res) => {
     throw new ApiError(400, "Video ID is required");
   }
 
-  const deleted = await Video.findByIdAndDelete(id);
-  if (!deleted) {
+  const video = await videoRepository.findOneBy({ id });
+  if (!video) {
     throw new ApiError(404, "Video not found");
   }
+
+  await videoRepository.remove(video);
 
   return res
     .status(200)
@@ -134,12 +141,13 @@ export const createVideo = async (req, res) => {
     throw new ApiError(400, "Name and link are required");
   }
 
-  const video = await Video.create({
+  const video = videoRepository.create({
     name,
     link,
     fileName: name,
-    user_id: req.user?._id,
+    user_id: req.user?.id,
   });
+  await videoRepository.save(video);
 
   return res
     .status(201)

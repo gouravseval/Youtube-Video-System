@@ -1,12 +1,9 @@
-// db/index.js
-import mongoose from "mongoose";
+import { AppDataSource } from "./data-source.js";
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(
-      "mongodb+srv://gouravjangra033_db_user:nK8ta97B51yWeEHz@pythonlearning.k7zufh5.mongodb.net/?appName=pythonLearning",
-    );
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    const conn = await AppDataSource.initialize();
+    console.log(`Postgres Connected: ${conn.options.type}`);
   } catch (error) {
     console.error("DB connection failed:", error.message);
     process.exit(1);
