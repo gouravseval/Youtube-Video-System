@@ -1,69 +1,100 @@
-import { User } from "../models/model.user";
-import { comparePassword, hashPassword } from "../utils/bcrypt";
+import { User } from "../models/model.user.js";
+import { comparePassword, hashPassword } from "../utils/bcrypt.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 
 export const signUp = async (req, res) => {
   const { username, email, password } = req.body;
+  const currentUser = req.user
 
+
+  // Validate required fields
   if (
     [username, email, password].some((field) => !field || field.trim() === "")
   ) {
-    console.log("All fields are required");
+    throw new ApiError(400, "All fields are required");
   }
 
+  // Hash password
   const hash = await hashPassword(password);
 
   if (!hash) {
-    console.error("unabale to hash password");
+    throw new ApiError(500, "Unable to hash password");
   }
 
+  // Check for duplicate account
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
-    console.log("User already exists");
-  } else {
-    console.log("User not found");
+    throw new ApiError(409, "User with this email already exists");
   }
 
-  const user = User.create({
+  // Create and persist new user
+  const user = await User.create({
     username,
     password: hash,
     email,
   });
 
-  user.save();
-
-  res.json({
-    status: 201,
-    message: "User create successfully",
-  });
+  return res
+    .status(201)
+    .json(new ApiResponse(201, { id: user._id, username, email }, "User created successfully"));
 };
+
+
+
 
 export const login = async (req, res) => {
-  const { email, password } = req.params;
+  const { email, password } = req.body;
 
-  if ([email, password].some((e) => !e || e.trim === "")) {
-    throw new Error("invalid creds");
+  // Validate required fields
+  if ([email, password].some((field) => !field || field.trim() === "")) {
+    throw new ApiError(400, "Email and password are required");
   }
 
-  const user = User.findOne({
-    email,
-  });
+  // Find user
+  const user = await User.findOne({ email });
 
   if (!user) {
-    throw new Error("user not found");
+    throw new ApiError(404, "User not found");
   }
 
-  const isPassword = comparePassword(password, user.password);
+  // Verify password
+  const isPasswordValid = await comparePassword(password, user.password);
 
-  if (!isPassword) {
-    throw new Error("Invalid creds");
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid credentials");
   }
 
-  res.json({
-    data: {
-      accessToken: "asfjasljfdlas",
-    },
-    message: "logged In",
-    status: 200,
-  });
+  // Generate Tokens
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+
+  // Save refresh token to user
+  user.refreshToken = refreshToken;
+  await user.save({ validateBeforeSave: false });
+
+  const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "Logged in successfully"
+      )
+    );
 };
+

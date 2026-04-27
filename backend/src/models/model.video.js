@@ -1,18 +1,28 @@
-import { model, Schema } from "mongoose";
-import { User } from "./model.user";
+import mongoose, { Schema } from "mongoose";
 
-const videoSchema = new Schema({
-    fileName : {
-        type : String,
-        required : true
+const videoSchema = new Schema(
+  {
+    fileName: {
+      type: String,
+      required: true,
     },
-    name : {
-        type : String,
-        required : true
+    name: {
+      type: String,
+      required: true,
     },
-    user_id : {
-        rel : ObjectId(User)
+    link: {
+      type: String,
+      required: true,
     },
-});
+    user_id: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-export const Video = model("Video", videoSchema);
+export const Video = mongoose.model("Video", videoSchema);
+
