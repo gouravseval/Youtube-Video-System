@@ -11,7 +11,6 @@ import { ApiError } from "../utils/ApiError.js";
  *  - Generic JS errors / unhandled async rejections
  */
 export const errorHandler = (err, req, res, next) => {
-  // If it's our custom ApiError, use its statusCode and message directly
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
       success: false,
