@@ -1,46 +1,50 @@
 import { AppDataSource } from "../db/data-source.js";
-import { UserEntity } from "../models/user.entity.js";
+import { User } from "../models/user.entity.js";
 import { comparePassword, hashPassword } from "../utils/bcrypt.js";
 import { ApiError } from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
+import { IUserService, IUserRegister, IUserLogin } from "../interfaces/user.interface.js";
+import { Repository } from "typeorm";
 
-class UserService {
+class UserService implements IUserService {
+    private userRepository: Repository<User>;
+
     constructor() {
-        this.userRepository = AppDataSource.getRepository(UserEntity);
+        this.userRepository = AppDataSource.getRepository(User);
     }
 
-    generateAccessToken(user) {
+    generateAccessToken(user: User): string {
         return jwt.sign(
             {
                 id: user.id,
                 email: user.email,
                 username: user.username,
             },
-            process.env.ACCESS_TOKEN_SECRET || "access_secret_123",
+            (process.env.ACCESS_TOKEN_SECRET || "access_secret_123") as jwt.Secret,
             {
-                expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "1d",
+                expiresIn: (process.env.ACCESS_TOKEN_EXPIRY || "1d") as any,
             }
         );
     }
 
-    generateRefreshToken(user) {
+    generateRefreshToken(user: User): string {
         return jwt.sign(
             {
                 id: user.id,
             },
-            process.env.REFRESH_TOKEN_SECRET || "refresh_secret_123",
+            (process.env.REFRESH_TOKEN_SECRET || "refresh_secret_123") as jwt.Secret,
             {
-                expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "10d",
+                expiresIn: (process.env.REFRESH_TOKEN_EXPIRY || "10d") as any,
             }
         );
     }
 
-    async registerUser({ username, email, password }) {
+    async registerUser({ username, email, password }: IUserRegister): Promise<Partial<User>> {
         if ([username, email, password].some((field) => !field || field.trim() === "")) {
             throw new ApiError(400, "All fields are required");
         }
 
-        const hash = await hashPassword(password);
+        const hash = await hashPassword(password!);
         if (!hash) {
             throw new ApiError(500, "Unable to hash password");
         }
@@ -60,8 +64,8 @@ class UserService {
         return { id: user.id, username, email };
     }
 
-    async loginUser({ email, password }) {
-        if ([email, password].some((field) => !field || field.trim() === "")) {
+    async loginUser({ email, password }: IUserLogin): Promise<{ user: Partial<User> | null; accessToken: string; refreshToken: string }> {
+        if ([email, password].some((field) => !field || (field && field.trim() === ""))) {
             throw new ApiError(400, "Email and password are required");
         }
 
@@ -70,7 +74,7 @@ class UserService {
             throw new ApiError(404, "User not found");
         }
 
-        const isPasswordValid = await comparePassword(password, user.password);
+        const isPasswordValid = await comparePassword(password!, user.password);
         if (!isPasswordValid) {
             throw new ApiError(401, "Invalid credentials");
         }

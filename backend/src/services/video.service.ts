@@ -1,18 +1,22 @@
 import { AppDataSource } from "../db/data-source.js";
-import { VideoEntity } from "../models/video.entity.js";
+import { Video } from "../models/video.entity.js";
 import { uploadOnCloudinary } from "../cloudinary/cloudinary.js";
 import { ApiError } from "../utils/ApiError.js";
+import { IVideoService, IVideoCreate, IVideoUpload } from "../interfaces/video.interface.js";
+import { Repository } from "typeorm";
 
-class VideoService {
+class VideoService implements IVideoService {
+    private videoRepository: Repository<Video>;
+
     constructor() {
-        this.videoRepository = AppDataSource.getRepository(VideoEntity);
+        this.videoRepository = AppDataSource.getRepository(Video);
     }
 
-    async getAllVideos({ page = 1, limit = 12 }) {
+    async getAllVideos({ page = 1, limit = 12 }: { page?: number; limit?: number }): Promise<Video[]> {
         const skip = (page - 1) * limit;
 
         const videos = await this.videoRepository.find({
-            order: { createdAt: "DESC" },
+            order: { createdAt: "DESC" as any },
             skip: skip,
             take: limit,
         });
@@ -20,7 +24,7 @@ class VideoService {
         return videos;
     }
 
-    async getVideoById(id) {
+    async getVideoById(id: string): Promise<Video> {
         if (!id) {
             throw new ApiError(400, "Video ID is required");
         }
@@ -33,7 +37,7 @@ class VideoService {
         return video;
     }
 
-    async uploadVideo({ name, localFilePath, originalName, userId }) {
+    async uploadVideo({ name, localFilePath, originalName, userId }: IVideoUpload): Promise<Video> {
         if (!name || name.trim() === "") {
             throw new ApiError(400, "Video name is required");
         }
@@ -59,7 +63,7 @@ class VideoService {
         return video;
     }
 
-    async deleteVideo(id) {
+    async deleteVideo(id: string): Promise<boolean> {
         if (!id) {
             throw new ApiError(400, "Video ID is required");
         }
@@ -73,7 +77,7 @@ class VideoService {
         return true;
     }
 
-    async createVideo({ name, link, userId }) {
+    async createVideo({ name, link, userId }: IVideoCreate): Promise<Video> {
         if (!name || !link) {
             throw new ApiError(400, "Name and link are required");
         }

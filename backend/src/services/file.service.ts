@@ -1,8 +1,12 @@
 import { uploadOnCloudinary } from "../cloudinary/cloudinary.js";
 import { ApiError } from "../utils/ApiError.js";
 
-class FileService {
-    async uploadSingleFile(localFilePath) {
+interface IFileService {
+    uploadSingleFile(localFilePath?: string): Promise<{ secure_url: string }>;
+}
+
+class FileService implements IFileService {
+    async uploadSingleFile(localFilePath?: string): Promise<{ secure_url: string }> {
         if (!localFilePath) {
             throw new ApiError(400, "No file provided");
         }
