@@ -25,23 +25,23 @@ export default function Home() {
     try {
       const res = await apiService.video.getAll(pageNum);
       const fetchedVideos = res.data?.data || [];
-      
+
       if (fetchedVideos.length === 0) {
         setHasMore(false);
         return;
       }
 
       const mappedVideos = fetchedVideos.map((v: any) => ({
-        id: v._id,
+        id: v.id,
         name: v.name,
         link: v.link,
         createdAt: new Date(v.createdAt).toLocaleDateString(),
-        thumbnail: `https://picsum.photos/seed/${v._id}/640/360`,
+        thumbnail: `https://picsum.photos/seed/${v.id}/640/360`,
       }));
 
       setVideos((prev) => (pageNum === 1 ? mappedVideos : [...prev, ...mappedVideos]));
       setPage(pageNum);
-      
+
       if (fetchedVideos.length < 12) {
         setHasMore(false);
       }

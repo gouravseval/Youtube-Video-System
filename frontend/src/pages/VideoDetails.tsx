@@ -4,7 +4,7 @@ import { User, ThumbsUp, MessageSquare, Share2 } from "lucide-react";
 import { apiService } from "../api/api";
 
 interface VideoData {
-  _id: string;
+  id: string;
   name: string;
   link: string;
   createdAt: string;
@@ -27,7 +27,7 @@ export default function VideoDetails() {
         // Fetch recommendations (just reuse getAll for now)
         const recRes = await apiService.video.getAll(1, 8);
         setRecommendedVideos(
-          recRes.data?.data?.filter((v: any) => v._id !== id) || [],
+          recRes.data?.data?.filter((v: any) => v.id !== id) || [],
         );
       } catch (error) {
         console.error("Failed to fetch video details:", error);
@@ -65,7 +65,7 @@ export default function VideoDetails() {
         {/* Video Player */}
         <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-zinc-800">
           <video
-            src={`${import.meta.env.VITE_API_BASE_URL}/api/video/stream/${video._id}`}
+            src={`${import.meta.env.VITE_API_BASE_URL}/api/video/stream/${video.id}`}
 
             controls
             autoPlay
@@ -117,13 +117,13 @@ export default function VideoDetails() {
         <div className="space-y-4">
           {recommendedVideos.map((rec) => (
             <Link
-              key={rec._id}
-              to={`/video/${rec._id}`}
+              key={rec.id}
+              to={`/video/${rec.id}`}
               className="flex gap-3 bg-zinc-900/50 p-2 rounded-lg hover:bg-zinc-800/50 transition-colors duration-200 border border-zinc-800/30 group"
             >
               <div className="relative w-32 aspect-video bg-zinc-800 rounded-md overflow-hidden flex-shrink-0">
                 <img
-                  src={`https://picsum.photos/seed/${rec._id}/320/180`}
+                  src={`https://picsum.photos/seed/${rec.id}/320/180`}
                   alt={rec.name}
                   className="w-full h-full object-cover"
                 />
